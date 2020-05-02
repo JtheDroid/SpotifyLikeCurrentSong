@@ -18,12 +18,12 @@ access_token = ""
 refresh_token = ""
 
 
-def request_token(request):
-    json_data = request.json()
-    if "error" in json_data:
-        raise (Exception(json_data["error"], json_data["error_description"]))
+def request_token(data):
+    if "error" in data:
+        raise (Exception(data["error"], data["error_description"]))
     else:
-        return json_data["access_token"], json_data["refresh_token"]
+        return data["access_token"] if "access_token" in data else "", \
+               data["refresh_token"] if "refresh_token" in data else refresh_token
 
 
 def request_token_with_auth_code(auth_code):
@@ -33,7 +33,7 @@ def request_token_with_auth_code(auth_code):
                                        "redirect_uri": redirect_uri,
                                        "client_id": client_id,
                                        "client_secret": client_secret})
-    return request_token(r)
+    return request_token(r.json())
 
 
 def request_token_with_refresh_token(token):
@@ -42,7 +42,7 @@ def request_token_with_refresh_token(token):
                                        "refresh_token": token,
                                        "client_id": client_id,
                                        "client_secret": client_secret})
-    return request_token(r)
+    return request_token(r.json())
 
 
 def api_request(url, args=None, func=requests.get):
