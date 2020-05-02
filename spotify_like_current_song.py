@@ -1,11 +1,12 @@
-import base64
+import webbrowser
 from urllib.parse import urlencode
-from http_server import get_callback_code
 
 import requests
-import webbrowser
-from application_data import client_id, client_secret
 
+from application_data import client_id, client_secret
+from http_server import get_callback_code
+
+statuscode = "_STATUS_CODE_"
 scopes = "user-read-currently-playing user-library-modify"
 redirect_uri = "http://localhost:8888/"
 authorize_url = "https://accounts.spotify.com/authorize?" + urlencode({"client_id": client_id,
@@ -45,19 +46,27 @@ def request_token_with_refresh_token(token):
     return request_token(r.json())
 
 
-def api_request(url, args=None, func=requests.get):
-    if args is None:
-        args = dict()
-    r = func(url, data=args, headers={"Authorization": "Bearer {}".format(access_token)})
+def api_request(url, params=None, func=requests.get):
+    if params is None:
+        params = dict()
+    r = func(url, params=params, headers={"Authorization": "Bearer {}".format(access_token)})
     data = r.json() if r.content else dict()
     if "error" in data:
         raise Exception("error: " + str(data["error"]))
+    data[statuscode] = r.status_code
     return data
 
 
 def get_currently_playing():
     data = api_request("https://api.spotify.com/v1/me/player/currently-playing")
     return data["item"]["id"] if "item" in data and "id" in data["item"] else ""
+
+
+def like_song(song_id):
+    if not song_id:
+        return
+    data = api_request("https://api.spotify.com/v1/me/tracks", params={"ids": song_id}, func=requests.put)
+    return data
 
 
 while not access_token:
@@ -76,4 +85,6 @@ while not access_token:
         code = get_callback_code()
         print(code)
 
-print(get_currently_playing())
+current_song_id = get_currently_playing()
+print(current_song_id)
+print(like_song(current_song_id))
