@@ -20,13 +20,9 @@ refresh_token = ""
 
 def request_token(request):
     json_data = request.json()
-    print(json_data)
     if "error" in json_data:
-        print("Error:", json_data["error"], json_data["error_description"])
         raise (Exception(json_data["error"], json_data["error_description"]))
     else:
-        print("access_token", json_data["access_token"])
-        print("refresh_token", json_data["refresh_token"])
         return json_data["access_token"], json_data["refresh_token"]
 
 
@@ -67,11 +63,13 @@ def get_currently_playing():
 while not access_token:
     if refresh_token:
         access_token, refresh_token = request_token_with_refresh_token(refresh_token)
-        print(access_token, refresh_token)
+        print("access_token", access_token)
+        print("refresh_token", refresh_token)
 
     elif code:
         access_token, refresh_token = request_token_with_auth_code(code)
-        print(access_token, refresh_token)
+        print("access_token", access_token)
+        print("refresh_token", refresh_token)
 
     else:
         webbrowser.open_new_tab(authorize_url)
