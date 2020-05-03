@@ -1,10 +1,11 @@
-import webbrowser
+# import webbrowser
 from urllib.parse import urlencode
 
+import appdaemon.plugins.hass.hassapi as hass
 import requests
 
-import application_data
-from http_server import get_callback_code
+
+# import application_data
 
 
 class Spotify:
@@ -12,7 +13,7 @@ class Spotify:
     scopes = "user-read-currently-playing user-library-modify"
 
     def __init__(self, client_id, client_secret,
-                 code="", access_token="", refresh_token="", redirect_uri="http://localhost:8888/"):
+                 code="", access_token="", refresh_token="", redirect_uri="http://localhost:8888/", print_func=print):
         self.client_id = client_id
         self.client_secret = client_secret
         self.code = code
@@ -23,6 +24,7 @@ class Spotify:
                                                                                     "response_type": "code",
                                                                                     "redirect_uri": self.redirect_uri,
                                                                                     "scope": Spotify.scopes})
+        self.print = print_func
 
     def request_token(self, data):
         if "error" in data:
@@ -72,20 +74,49 @@ class Spotify:
         while not self.access_token:
             if self.refresh_token:
                 self.access_token, self.refresh_token = self.request_token_with_refresh_token(self.refresh_token)
-                print("access_token", self.access_token)
-                print("refresh_token", self.refresh_token)
+                self.print("access_token", self.access_token)
+                self.print("refresh_token", self.refresh_token)
+                return True
             elif self.code:
                 self.access_token, self.refresh_token = self.request_token_with_auth_code(self.code)
-                print("access_token", self.access_token)
-                print("refresh_token", self.refresh_token)
+                self.print("access_token", self.access_token)
+                self.print("refresh_token", self.refresh_token)
+                return True
             else:
-                webbrowser.open_new_tab(self.authorize_url)
-                self.code = get_callback_code()
-                print(self.code)
+                self.print(self.authorize_url)
+                break
+        return False
+        # webbrowser.open_new_tab(self.authorize_url)
+        # self.code = get_callback_code()
+        # self.print(self.code)
 
 
-s = Spotify(application_data.client_id, application_data.client_secret)
-s.auth()
-current_song_id = s.get_currently_playing()
-print(current_song_id)
-print(s.like_song(current_song_id))
+class SpotifyLikeApp(hass.Hass):
+
+    def initialize(self):
+        client_id = self.args["client_id"]
+        client_secret = self.args["client_secret"]
+        code = self.args["auth_code"] if "auth_code" in self.args else ""
+        refresh_token = self.args["refresh_token"] if "refresh_token" in self.args else ""
+        self.spotify = Spotify(client_id, client_secret, code=code, refresh_token=refresh_token, print_func=self.log)
+        self.token_valid = False
+        self.auth()
+        self.run_in(self.token_timeout_callback, 3600)
+        self.listen_event(self.event_callback, "SPOTIFY_LIKE_CURRENT")
+
+    def auth(self):
+        self.token_valid = self.spotify.auth()
+        self.run_in(self.token_timeout_callback, 3600)
+
+    def event_callback(self, event_name, data, kwargs):
+        if "code" in data:
+            self.spotify.code = data["code"]
+            self.auth()
+        elif not self.token_valid:
+            self.auth()
+        current_song_id = self.spotify.get_currently_playing()
+        self.log(current_song_id)
+        self.log(str(self.spotify.like_song(current_song_id)))
+
+    def token_timeout_callback(self, kwargs):
+        self.token_valid = False
