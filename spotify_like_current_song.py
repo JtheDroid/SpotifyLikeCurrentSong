@@ -74,21 +74,21 @@ class Spotify:
         while not self.access_token:
             if self.refresh_token:
                 self.access_token, self.refresh_token = self.request_token_with_refresh_token(self.refresh_token)
-                self.print("access_token", self.access_token)
-                self.print("refresh_token", self.refresh_token)
+                self.print("access_token " + self.access_token)
+                self.print("refresh_token " + self.refresh_token)
                 return True
             elif self.code:
                 self.access_token, self.refresh_token = self.request_token_with_auth_code(self.code)
-                self.print("access_token", self.access_token)
-                self.print("refresh_token", self.refresh_token)
+                self.print("access_token " + self.access_token)
+                self.print("refresh_token " + self.refresh_token)
                 return True
             else:
                 self.print(self.authorize_url)
                 break
+                # webbrowser.open_new_tab(self.authorize_url)
+                # self.code = get_callback_code()
+                # self.print("code" + self.code)
         return False
-        # webbrowser.open_new_tab(self.authorize_url)
-        # self.code = get_callback_code()
-        # self.print(self.code)
 
 
 class SpotifyLikeApp(hass.Hass):
@@ -119,4 +119,5 @@ class SpotifyLikeApp(hass.Hass):
         self.log(str(self.spotify.like_song(current_song_id)))
 
     def token_timeout_callback(self, kwargs):
+        self.spotify.access_token = ""
         self.token_valid = False
